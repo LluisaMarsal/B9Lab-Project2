@@ -2,14 +2,16 @@ pragma solidity ^0.4.19;
 
 contract Remittance {
  
-    struct Remittance{
-       address owner;
+    struct NewRemittance {
+       address recipient1; 
+       address recipient2;
        uint amount;
        uint deadline; 
-       bytes32 passHash; //The usual hash function in Solidity is keccak256(abi.encodePacked(param1, param2, ...)).
+       bytes32 passHash1;
+       bytes32 passHash2;
     }
     
-    mapping (address => uint) public pendingWithdrawals; 
+    mapping (bytes32 => NewRemittance) public remittanceBoxes; 
 
     event LogToken(address recipient1, bytes32 passHash1, bytes32 passHash2);
     event LogWithdrawal(address owner, uint amount);
@@ -18,56 +20,54 @@ contract Remittance {
     event LogReceipt(address recipient2, uint amount); 
     event LogOwnerChanged(address owner, address newOwner);  
     
-    function remittance() public {
+    function Remittance(address recipient1, address recipient2, uint amount, uint deadline, bytes32 passHash1, bytes32 passHash2) public {
         address owner = msg.sender;
-        uint deadline = 30;
+        remittanceBoxes[owner] = NewRemittance(recipient1, recipient2, amount, 30, passHash1, passHash2);
     }
 
     function token(bytes32 passHash1, bytes32 passHash2, address recipient1, address recipient2) public returns (bool) {
-        passHash1 = keccak256(recipient1);
-        passHash2 = keccak256(recipient2); 
         require (passHash1 != bytes32(0));
         require (passHash2 != bytes32(0));
-        assert (passHash1 != passHash2);
+        require (passHash1 != passHash2);
         require (recipient1 != address(0x0)); 
         require (recipient2 != address(0x0));
-        assert (recipient1 != recipient2); 
+        require (recipient1 != recipient2); 
         LogToken(recipient1, passHash1, passHash2);
         return true;
     }
     
-    function withdraw(uint withdrawalDate, uint date, bool token) public { 
+    function withdraw(uint deadline, uint date, bool token) public { 
         if (token == true) {        
-        uint amount = pendingWithdrawals[msg.sender];
         require (amount >= 0);
-        pendingWithdrawals[msg.sender] = 0; 
+        uint amount = remittanceBoxes[owner];
         LogWithdrawal(msg.sender, amount);
         msg.sender.transfer(amount);
         }
-        require(30 <= withdrawalDate); 
+        require(now < deadline); 
         LogWithdrawalDate(date); 
     }
 
-    function transferEther(address  recipient1) public payable {
+    function transferEther(address  recipient1, uint amount) public payable {
         require (msg.value > 0);
-        pendingWithdrawals[recipient1] += msg.value;
+        remittanceBoxes[recipient1] += msg.value;
         LogTransferEther(msg.sender, recipient1, msg.value);
     } 
     
     function receipt(address recipient2, uint amount) public returns (bool) {
-        msg.value == amount;
+        if (msg.value == amount) {
+        return true;    
+        }
         LogReceipt(recipient2, msg.value);
-        return true;
     }
 
     function changeOwner(address owner, address newOwner) public {
-        require (msg.sender == owner);
+        require (msg.sender = owner);
         owner = newOwner;
         LogOwnerChanged(owner, newOwner);
     }
 
     function killMe(address owner) public returns (bool) {
-        require (msg.sender == owner);
+        require (msg.sender = owner);
         selfdestruct(owner);
         return true;
     }
