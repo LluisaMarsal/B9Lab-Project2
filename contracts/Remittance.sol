@@ -9,48 +9,38 @@ contract Remittance {
        address recipient2;
        uint amount;
        uint deadline; 
-       bytes32 passHash1;
-       bytes32 passHash2;
+       bytes32 passHash;
     }
     //for every bytes32 there is a NewRemittance and that namespace will be called remittanceBoxes
     mapping (bytes32 => NewRemittance) public remittanceBoxes; 
 
     event LogWithdrawal(address owner, uint amount);
     event LogWithdrawalDate(uint date); 
-    event LogTransferEther(address sender, address recipient1, uint value); 
     event LogReceipt(address recipient2, uint amount); 
     event LogOwnerChanged(address owner, address newOwner);  
     
-    function Remittance(address recipient1, address recipient2, uint amount, uint deadline, bytes32 passHash1, bytes32 passHash2) public {
+    function Remittance(address recipient1, address recipient2, uint amount, bytes32 passHash) public {
         owner = msg.sender; 
-        remittanceBoxes[passHash2] = NewRemittance(recipient1, recipient2, amount, 30, passHash1, passHash2);
+        remittanceBoxes[passHash] = NewRemittance(recipient1, recipient2, amount, 30, passHash);
     }
 
-    function unlockRecipient1Funds(bytes32 passHash1, bytes32 passHash2, address recipient1, address recipient2) public {
-        require(passHash1 != passHash2);
+    function claimRemittance(bytes32 passHash, uint pass1, uint pass2, address recipient1, address recipient2, uint amount) public {
         require(recipient1 != address(0x0)); 
         require(recipient2 != address(0x0));
         require(recipient1 != recipient2); 
         require(recipient2 != 0);
-        if(keccak256(passHash1, passHash2) = "0x123...!") {
-            recipient1.transfer(address(this).balance);
+        if(keccak256(pass1, pass2) = passHash) {
+            NewRemittance = keccak256(pass1, pass2);
+            recipient1.transfer(address(this).amount);
         }
     }
     
-    function withdraw(uint deadline, uint date, uint amount) public { 
-        require (amount >= 0);
-        amount = NewRemittance;
+    function cancelRemittance(uint deadline, uint date, uint amount) public { 
+        require(NewRemittance = (amount > 0));
         LogWithdrawal(msg.sender, amount);
-        msg.sender.transfer(amount);
         require(now < deadline); 
         LogWithdrawalDate(date); 
     }
-
-    function transferEther(address recipient1) public payable {
-        require (msg.value > 0);
-        NewRemittance += msg.value;
-        LogTransferEther(msg.sender, recipient1, msg.value);
-    } 
     
     function receipt(address recipient2, uint amount) public returns (bool) {
         if (msg.value == amount) {
@@ -59,13 +49,13 @@ contract Remittance {
         LogReceipt(recipient2, msg.value);
     }
 
-    function changeOwner(address owner, address newOwner) public {
+    function changeOwner(address newOwner) public {
         require (msg.sender == owner);
         owner = newOwner;
         LogOwnerChanged(owner, newOwner);
     }
 
-    function killMe(address owner) public returns (bool) {
+    function killMe() public returns (bool) {
         require (msg.sender == owner);
         selfdestruct(owner);
         return true;
