@@ -8,38 +8,48 @@ contract Remittance {
        address recipient1; 
        address recipient2;
        uint amount;
+       uint balance;
        uint deadline; 
        bytes32 passHash;
     }
-    //for every bytes32 there is a NewRemittance and that namespace will be called remittanceBoxes
+    // for every bytes32 there is a NewRemittance and that namespace will be called remittanceBoxes
     mapping (bytes32 => NewRemittance) public remittanceBoxes; 
 
+    event LogDeposit(address owner, uint amount);
     event LogWithdrawal(address owner, uint amount);
-    event LogWithdrawalDate(uint date); 
     event LogReceipt(address recipient2, uint amount); 
     event LogOwnerChanged(address owner, address newOwner);  
     
-    function Remittance(address recipient1, address recipient2, uint amount, bytes32 passHash) public {
+    function Remittance() public {
         owner = msg.sender; 
-        remittanceBoxes[passHash] = NewRemittance(recipient1, recipient2, amount, 30, passHash);
     }
 
-    function claimRemittance(bytes32 passHash, uint pass1, uint pass2, address recipient1, address recipient2, uint amount) public {
+    function claimRemittance(bytes32 pass1, bytes32 pass2) public returns(bool success) {
+        address recipient1;
+        address recipient2;
         require(recipient1 != address(0x0)); 
         require(recipient2 != address(0x0));
         require(recipient1 != recipient2); 
         require(recipient2 != 0);
-        if(keccak256(pass1, pass2) = passHash) {
-            NewRemittance = keccak256(pass1, pass2);
-            recipient1.transfer(address(this).amount);
-        }
+        uint amount = remittanceBoxes[passHash];
+        uint balance = remittanceBoxes[passHash];
+        remittanceBoxes[passHash] = NewRemittance(recipient1, recipient2, amount, balance, 30, passHash);
+        bytes32 passHash = keccak256(pass1, pass2);
+        NewRemittance memory r = remittanceBoxes[passHash]; // this is the code the user implicitly sent
+        require(r.amount > 0); // if this box is empty, disallow
+        balance[msg.sender] += amount;
+        LogDeposit(msg.sender, amount);
+        return true;
     }
     
-    function cancelRemittance(uint deadline, uint date, uint amount) public { 
-        require(NewRemittance = (amount > 0));
-        LogWithdrawal(msg.sender, amount);
+    function cancelRemittance(uint deadline, uint amount) public payable returns(bool success) { 
         require(now < deadline); 
-        LogWithdrawalDate(date); 
+        require(amount == NewRemittance);
+        uint balance = NewRemittance;
+        balance[msg.sender] -= amount;
+        LogWithdrawal(msg.sender, amount);
+        recipient1.transfer(NewRemittance.amount);
+        return true;
     }
     
     function receipt(address recipient2, uint amount) public returns (bool) {
