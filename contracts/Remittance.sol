@@ -2,72 +2,54 @@ pragma solidity ^0.4.19;
 
 contract Remittance {
 
-    address public owner;
+    address public sentFrom;
     
-    struct NewRemittance {
-       address recipient1; 
-       address recipient2;
+    struct RemittanceBox {
+       address moneyChanger; 
+       address sendVia;
        uint amount;
-       uint balance;
        uint deadline; 
-       bytes32 passHash;
     }
-    // for every bytes32 there is a NewRemittance and that namespace will be called remittanceBoxes
-    mapping (bytes32 => NewRemittance) public remittanceBoxes; 
+    // for every bytes32 there is a newRemittance and that namespace (struct) will be called RemittanceBox
+    mapping (bytes32 => RemittanceBox) public newRemittance; 
 
-    event LogDeposit(address owner, uint amount);
-    event LogWithdrawal(address owner, uint amount);
-    event LogReceipt(address recipient2, uint amount); 
-    event LogOwnerChanged(address owner, address newOwner);  
+    event LogClaim(address sentFrom, uint amount);
+    event LogWithdrawal(address sentFrom, uint amount);
+    event LogSenderChanged(address sentFrom, address newSender);  
     
     function Remittance() public {
-        owner = msg.sender; 
+        sentFrom = msg.sender; 
     }
 
-    function claimRemittance(bytes32 pass1, bytes32 pass2) public returns(bool success) {
-        address recipient1;
-        address recipient2;
-        require(recipient1 != address(0x0)); 
-        require(recipient2 != address(0x0));
-        require(recipient1 != recipient2); 
-        require(recipient2 != 0);
-        uint amount = remittanceBoxes[passHash];
-        uint balance = remittanceBoxes[passHash];
-        remittanceBoxes[passHash] = NewRemittance(recipient1, recipient2, amount, balance, 30, passHash);
-        bytes32 passHash = keccak256(pass1, pass2);
-        NewRemittance memory r = remittanceBoxes[passHash]; // this is the code the user implicitly sent
+    function claimRemittance(address moneyChanger, bytes32 password1, bytes32 password2) public returns(bool success) {
+        bytes32 hashedPassword = keccak256(password1, password2);
+        newRemittance[hashedPassword] = RemittanceBox(moneyChanger, sendVia, amount, 30);
+        RemittanceBox memory r = newRemittance[hashedPassword]; // this is the code the user implicitly sent
         require(r.amount > 0); // if this box is empty, disallow
-        balance[msg.sender] += amount;
-        LogDeposit(msg.sender, amount);
+        newRemittance[hashedPassword].sendVia.transfer(amount);
+        LogClaim(msg.sender, amount);
         return true;
     }
     
-    function cancelRemittance(uint deadline, uint amount) public payable returns(bool success) { 
-        require(now < deadline); 
-        require(amount == NewRemittance);
-        uint balance = NewRemittance;
-        balance[msg.sender] -= amount;
-        LogWithdrawal(msg.sender, amount);
-        recipient1.transfer(NewRemittance.amount);
+    function cancelRemittance(bytes32 hashedPassword) public payable returns(bool success) { 
+        require(sentFrom = newRemittance[hashedPassword].sendVia);
+        require(newRemittance[hashedPassword].amount += 0);
+        require(now > newRemittance[hashedPassword].deadline); 
+        newRemittance[hashedPassword].moneyChanger.transfer(newRemittance.amount);
+        LogWithdrawal(msg.sender, newRemittance[hashedPassword].amount);
+        newRemittance[hashedPassword].amount -= 0;
         return true;
-    }
-    
-    function receipt(address recipient2, uint amount) public returns (bool) {
-        if (msg.value == amount) {
-        return true;    
-        }
-        LogReceipt(recipient2, msg.value);
     }
 
-    function changeOwner(address newOwner) public {
-        require (msg.sender == owner);
-        owner = newOwner;
-        LogOwnerChanged(owner, newOwner);
+    function changeSender(address newSender) public {
+        require (sentFrom == msg.sender);
+        sentFrom = newSender;
+        LogSenderChanged(sentFrom, newSender);
     }
 
     function killMe() public returns (bool) {
-        require (msg.sender == owner);
-        selfdestruct(owner);
+        require (sentFrom == msg.sender);
+        selfdestruct(sentFrom);
         return true;
     }
 }
