@@ -2,9 +2,10 @@ pragma solidity ^0.4.19;
 
 contract Remittance {
 
-    address public sentFrom;
+    address public owner;
     
     struct RemittanceBox {
+       address sentFrom;
        address moneyChanger; 
        address sendVia;
        uint amount;
@@ -15,41 +16,49 @@ contract Remittance {
 
     event LogClaim(address sentFrom, uint amount);
     event LogWithdrawal(address sentFrom, uint amount);
-    event LogSenderChanged(address sentFrom, address newSender);  
+    event LogOwnerChanged(address owner, address newOwner);  
     
-    function Remittance() public {
+    function Remittance(address sentFrom) public {
         sentFrom = msg.sender; 
     }
 
     function claimRemittance(address moneyChanger, bytes32 password1, bytes32 password2) public returns(bool success) {
         bytes32 hashedPassword = keccak256(password1, password2);
-        newRemittance[hashedPassword] = RemittanceBox(moneyChanger, sendVia, amount, 30);
+        newRemittance[hashedPassword] = RemittanceBox(sentFrom, moneyChanger, sendVia, amount, 30);
         RemittanceBox memory r = newRemittance[hashedPassword]; // this is the code the user implicitly sent
         require(r.amount > 0); // if this box is empty, disallow
+        address sentFrom = msg.sender;
+        uint amount = msg.value;
         newRemittance[hashedPassword].sendVia.transfer(amount);
         LogClaim(msg.sender, amount);
         return true;
     }
     
-    function cancelRemittance(bytes32 hashedPassword) public payable returns(bool success) { 
+    function cancelRemittance(bytes32 hashedPassword, address sentFrom) public returns(bool success) {
         require(sentFrom = newRemittance[hashedPassword].sendVia);
         require(newRemittance[hashedPassword].amount += 0);
         require(now > newRemittance[hashedPassword].deadline); 
+        return true;
+    }
+    
+    function collectRemittance(bytes32 hashedPassword) public payable returns(bool success) {
+        newRemittance[hashedPassword].amount += msg.value;
+        newRemittance[hashedPassword].sentFrom = msg.sender;
         newRemittance[hashedPassword].moneyChanger.transfer(newRemittance.amount);
         LogWithdrawal(msg.sender, newRemittance[hashedPassword].amount);
-        newRemittance[hashedPassword].amount -= 0;
+        newRemittance[hashedPassword].amount = 0;
         return true;
     }
 
-    function changeSender(address newSender) public {
-        require (sentFrom == msg.sender);
-        sentFrom = newSender;
-        LogSenderChanged(sentFrom, newSender);
+    function changeOwner(address newOwner) public {
+        require (owner == msg.sender);
+        owner = newOwner;
+        LogOwnerChanged(owner, newOwner);
     }
 
     function killMe() public returns (bool) {
-        require (sentFrom == msg.sender);
-        selfdestruct(sentFrom);
+        require (owner == msg.sender);
+        selfdestruct(owner);
         return true;
     }
 }
