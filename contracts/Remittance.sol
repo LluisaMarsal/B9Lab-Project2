@@ -22,31 +22,28 @@ contract Remittance {
         sentFrom = msg.sender; 
     }
 
-    function claimRemittance(address moneyChanger, bytes32 password1, bytes32 password2) public returns(bool success) {
+    function claimRemittance(bytes32 password1, bytes32 password2) public returns(bool success) {
         bytes32 hashedPassword = keccak256(password1, password2);
-        newRemittance[hashedPassword] = RemittanceBox(sentFrom, moneyChanger, sendVia, amount, 30);
         RemittanceBox memory r = newRemittance[hashedPassword]; // this is the code the user implicitly sent
         require(r.amount > 0); // if this box is empty, disallow
-        address sentFrom = msg.sender;
-        uint amount = msg.value;
-        newRemittance[hashedPassword].sendVia.transfer(amount);
-        LogClaim(msg.sender, amount);
+        r.sendVia.transfer(r.amount);
+        LogClaim(msg.sender, r.amount);
         return true;
     }
     
-    function cancelRemittance(bytes32 hashedPassword, address sentFrom) public returns(bool success) {
-        require(sentFrom = newRemittance[hashedPassword].sendVia);
-        require(newRemittance[hashedPassword].amount += 0);
-        require(now > newRemittance[hashedPassword].deadline); 
+    function cancelRemittance(bytes32 hashedPassword) public returns(bool success) {
+        require(newRemittance[hashedPassword].sendVia == msg.sender);
+        require(newRemittance[hashedPassword].amount >= 0);
+        require(newRemittance[hashedPassword].deadline < now); 
         return true;
     }
     
-    function collectRemittance(bytes32 hashedPassword) public payable returns(bool success) {
+    function sendRemittance(bytes32 hashedPassword) public payable returns(bool success) {
         newRemittance[hashedPassword].amount += msg.value;
         newRemittance[hashedPassword].sentFrom = msg.sender;
-        newRemittance[hashedPassword].moneyChanger.transfer(newRemittance.amount);
+        newRemittance[hashedPassword].moneyChanger.transfer(msg.value);
+        newRemittance[hashedPassword].amount += 0;
         LogWithdrawal(msg.sender, newRemittance[hashedPassword].amount);
-        newRemittance[hashedPassword].amount = 0;
         return true;
     }
 
