@@ -11,42 +11,48 @@ contract Remittance {
        uint amount;
        uint deadline; 
     }
-    // for every bytes32 there is a newRemittance and that namespace (struct) will be called RemittanceBox
-    mapping (bytes32 => RemittanceBox) public newRemittance; 
+    // for every bytes32 there is a RemittanceBox and those namespaces (struct) will conform a mapping named remittanceStructs
+    mapping (bytes32 => RemittanceBox) public remittanceStructs; 
 
-    event LogClaim(address sentFrom, uint amount);
-    event LogWithdrawal(address sentFrom, uint amount);
+    event LogAllocation(address sentFrom, uint amount);
+    event LogClaim(address sentFrom, address moneyChanger, uint amount);
     event LogOwnerChanged(address owner, address newOwner);  
     
     function Remittance(address sentFrom) public {
         sentFrom = msg.sender; 
     }
+    
+    function ownerComission (address moneyChanger) public payable returns(bool success) {
+        owner.transfer(500);
+        return true;
+    }
 
-    function claimRemittance(bytes32 password1, bytes32 password2) public returns(bool success) {
+    function allocateRemittance(bytes32 password1, bytes32 password2) public returns(bool success) {
         bytes32 hashedPassword = keccak256(password1, password2);
-        RemittanceBox memory r = newRemittance[hashedPassword]; // this is the code the user implicitly sent
+        RemittanceBox memory r = remittanceStructs[hashedPassword]; // this is the code the user implicitly sent
         require(r.amount > 0); // if this box is empty, disallow
         r.sendVia.transfer(r.amount);
-        LogClaim(msg.sender, r.amount);
+        LogAllocation(msg.sender, r.amount);
+        return true;
+    }
+    
+    function sendRemittance(bytes32 hashedPassword, uint amount) public payable returns(bool success) {
+        if (remittanceStructs[hashedPassword].amount == 0) revert;
+        if (remittanceStructs[hashedPassword].amount != amount) revert;
+        remittanceStructs[hashedPassword].amount += msg.value;
+        remittanceStructs[hashedPassword].sentFrom = msg.sender;
+        remittanceStructs[hashedPassword].moneyChanger.transfer(msg.value);
+        LogClaim(msg.sender, remittanceStructs[hashedPassword].moneyChanger, remittanceStructs[hashedPassword].amount);
         return true;
     }
     
     function cancelRemittance(bytes32 hashedPassword) public returns(bool success) {
-        require(newRemittance[hashedPassword].sendVia == msg.sender);
-        require(newRemittance[hashedPassword].amount >= 0);
-        require(newRemittance[hashedPassword].deadline < now); 
+        require(remittanceStructs[hashedPassword].sendVia == msg.sender);
+        require(remittanceStructs[hashedPassword].amount >= 0);
+        require(remittanceStructs[hashedPassword].deadline < now); 
         return true;
     }
     
-    function sendRemittance(bytes32 hashedPassword) public payable returns(bool success) {
-        newRemittance[hashedPassword].amount += msg.value;
-        newRemittance[hashedPassword].sentFrom = msg.sender;
-        newRemittance[hashedPassword].moneyChanger.transfer(msg.value);
-        newRemittance[hashedPassword].amount += 0;
-        LogWithdrawal(msg.sender, newRemittance[hashedPassword].amount);
-        return true;
-    }
-
     function changeOwner(address newOwner) public {
         require (owner == msg.sender);
         owner = newOwner;
