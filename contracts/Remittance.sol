@@ -18,8 +18,7 @@ contract Remittance {
     event LogClaim(address sentFrom, address moneyChanger, uint amount);
     event LogOwnerChanged(address owner, address newOwner);  
     
-    function Remittance(address sentFrom) public {
-        sentFrom = msg.sender; 
+    function Remittance() public {
     }
     
     function ownerComission (address moneyChanger) public payable returns(bool success) {
@@ -27,18 +26,18 @@ contract Remittance {
         return true;
     }
 
-    function allocateRemittance(bytes32 password1, bytes32 password2) public returns(bool success) {
-        bytes32 hashedPassword = keccak256(password1, password2);
+    function allocateRemittance(bytes32 password1, bytes32 password2) public returns(bytes32 hashedPassword) {
+        hashedPassword = keccak256(password1, password2);
         RemittanceBox memory r = remittanceStructs[hashedPassword]; // this is the code the user implicitly sent
         require(r.amount > 0); // if this box is empty, disallow
         r.sendVia.transfer(r.amount);
         LogAllocation(msg.sender, r.amount);
-        return true;
+        return hashedPassword;
     }
     
-    function sendRemittance(bytes32 hashedPassword, uint amount) public payable returns(bool success) {
-        if (remittanceStructs[hashedPassword].amount == 0) revert;
-        if (remittanceStructs[hashedPassword].amount != amount) revert;
+    function redeemRemittance(bytes32 hashedPassword, uint amount) public payable returns(bool success) {
+        if (remittanceStructs[hashedPassword].amount == 0) revert();
+        if (remittanceStructs[hashedPassword].amount != amount) revert();
         remittanceStructs[hashedPassword].amount += msg.value;
         remittanceStructs[hashedPassword].sentFrom = msg.sender;
         remittanceStructs[hashedPassword].moneyChanger.transfer(msg.value);
@@ -50,6 +49,7 @@ contract Remittance {
         require(remittanceStructs[hashedPassword].sendVia == msg.sender);
         require(remittanceStructs[hashedPassword].amount >= 0);
         require(remittanceStructs[hashedPassword].deadline < now); 
+        revert();
         return true;
     }
     
