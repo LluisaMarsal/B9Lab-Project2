@@ -19,6 +19,7 @@ contract Remittance {
     event LogOwnerChanged(address owner, address newOwner);  
     
     function Remittance() public {
+        owner = msg.sender;
     }
     
     function ownerComission (address moneyChanger) public payable returns(bool success) {
@@ -26,30 +27,30 @@ contract Remittance {
         return true;
     }
 
-    function allocateRemittance(bytes32 password1, bytes32 password2) public returns(bytes32 hashedPassword) {
-        hashedPassword = keccak256(password1, password2);
+    function depositRemittanceRemittance(bytes32 hashedPassword) public payable returns(bool success) {
         RemittanceBox memory r = remittanceStructs[hashedPassword]; // this is the code the user implicitly sent
         require(r.amount > 0); // if this box is empty, disallow
         r.sendVia.transfer(r.amount);
         LogAllocation(msg.sender, r.amount);
-        return hashedPassword;
+        return true;
     }
     
-    function redeemRemittance(bytes32 hashedPassword, uint amount) public payable returns(bool success) {
+    function collectRemittance(bytes32 password1, bytes32 password2, uint amount) public returns(bool success) {
+        bytes32 hashedPassword = keccak256(password1, password2);
         if (remittanceStructs[hashedPassword].amount == 0) revert();
         if (remittanceStructs[hashedPassword].amount != amount) revert();
-        remittanceStructs[hashedPassword].amount += msg.value;
+        remittanceStructs[hashedPassword].amount = msg.value;
         remittanceStructs[hashedPassword].sentFrom = msg.sender;
         remittanceStructs[hashedPassword].moneyChanger.transfer(msg.value);
         LogClaim(msg.sender, remittanceStructs[hashedPassword].moneyChanger, remittanceStructs[hashedPassword].amount);
         return true;
     }
     
-    function cancelRemittance(bytes32 hashedPassword) public returns(bool success) {
-        require(remittanceStructs[hashedPassword].sendVia == msg.sender);
+    function cancelRemittance(bytes32 hashedPassword) public payable returns(bool success) {
+        require(remittanceStructs[hashedPassword].sentFrom == msg.sender);
         require(remittanceStructs[hashedPassword].amount >= 0);
         require(remittanceStructs[hashedPassword].deadline < now); 
-        revert();
+        remittanceStructs[hashedPassword].sentFrom.transfer(msg.value);
         return true;
     }
     
