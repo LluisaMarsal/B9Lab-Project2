@@ -27,18 +27,15 @@ contract Remittance {
         return true;
     }
 
-    function depositRemittanceRemittance(bytes32 hashedPassword) public payable returns(bool success) {
+    function depositRemittance(bytes32 hashedPassword) public payable returns(bool success) {
         RemittanceBox memory r = remittanceStructs[hashedPassword]; // this is the code the user implicitly sent
-        require(r.amount > 0); // if this box is empty, disallow
         r.sendVia.transfer(r.amount);
         LogAllocation(msg.sender, r.amount);
         return true;
     }
     
-    function collectRemittance(bytes32 password1, bytes32 password2, uint amount) public returns(bool success) {
+    function collectRemittance(bytes32 password1, bytes32 password2) public returns(bool success) {
         bytes32 hashedPassword = keccak256(password1, password2);
-        if (remittanceStructs[hashedPassword].amount == 0) revert();
-        if (remittanceStructs[hashedPassword].amount != amount) revert();
         remittanceStructs[hashedPassword].amount = msg.value;
         remittanceStructs[hashedPassword].sentFrom = msg.sender;
         remittanceStructs[hashedPassword].moneyChanger.transfer(msg.value);
