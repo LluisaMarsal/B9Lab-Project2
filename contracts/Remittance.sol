@@ -4,6 +4,7 @@ contract Remittance {
     
     address public owner;
     uint fee = 50;
+    bool isRunning;
     
     struct RemittanceBox {
        address sentFrom;
@@ -17,54 +18,79 @@ contract Remittance {
     event LogDeposit(address sentFrom, address moneyChanger, uint amount, uint duration);
     event LogCollect(address moneyChanger, uint amount, uint now);
     event LogCancel(address sentFrom, uint amount, uint now);
-    event LogOwnerChanged(address owner, address newOwner, uint now);  
+    event LogOwnerChanged(address owner, address newOwner, uint now); 
+    event LogPausedContract(address sender, uint now);
+    event LogResumedContract(address sender, uint now);
+    
+    modifier onlyOwner {
+        require(owner == msg.sender);
+        _;
+    }
+    
+    modifier onlyIfRunning {
+        require(isRunning);
+        _;
+    }
+    
+    modifier onlyBoxAmount(bytes32 hashedPassword) {
+        uint amount = remittanceStructs[hashedPassword].amount;
+        _;
+    }
     
     function Remittance() public {
         owner = msg.sender;
+        isRunning = true;
     }
 
     function hashHelper(bytes32 password1, bytes32 password2) public pure returns(bytes32 hashedPassword) {
         return keccak256(password1, password2);
     }
     
-    function depositRemittance(bytes32 hashedPassword, address moneyChanger, uint duration) public payable returns(bool success) {
-        remittanceStructs[hashedPassword].amount = msg.value;
+    function depositRemittance(bytes32 hashedPassword, address moneyChanger, uint duration) public payable onlyIfRunning returns(bool success) {
+        remittanceStructs[hashedPassword].amount = msg.value - fee;
         remittanceStructs[hashedPassword].moneyChanger = moneyChanger;
         remittanceStructs[hashedPassword].deadline = duration + block.number;
-        LogDeposit(msg.sender, moneyChanger, msg.value, duration);
+        uint amount = remittanceStructs[hashedPassword].amount;
+        LogDeposit(msg.sender, moneyChanger, amount, duration);
         owner.transfer(fee);
         return true;
     }
     
-    function collectRemittance(bytes32 password1, bytes32 password2, uint amount) public returns(bool success) {
+    function collectRemittance(bytes32 password1, bytes32 password2) public onlyIfRunning returns(bool success) {
         bytes32 hashedPassword = hashHelper(password1, password2);
         require(remittanceStructs[hashedPassword].moneyChanger == msg.sender);
-        remittanceStructs[hashedPassword].amount = amount;
+        uint amount = remittanceStructs[hashedPassword].amount;
         LogCollect(msg.sender, remittanceStructs[hashedPassword].amount, now);
         msg.sender.transfer(amount);
         return true;
     }
     
-    function cancelRemittance(bytes32 hashedPassword, uint amount) public returns(bool success) {
+    function cancelRemittance(bytes32 hashedPassword) public onlyIfRunning returns(bool success) {
         if(remittanceStructs[hashedPassword].amount == 0) revert();
         require(remittanceStructs[hashedPassword].sentFrom == msg.sender);
-        require(remittanceStructs[hashedPassword].amount == amount);
         require(remittanceStructs[hashedPassword].deadline < now); 
+        uint amount = remittanceStructs[hashedPassword].amount;
         LogCancel(msg.sender, amount, now);
         msg.sender.transfer(amount);
         return true;
     }
     
-    function changeOwner(address newOwner) public returns(bool success) {
+    function changeOwner(address newOwner) public onlyIfRunning onlyOwner returns(bool success) {
         require(owner == msg.sender);
         owner = newOwner;
         LogOwnerChanged(owner, newOwner, now);
         return true;
     }
 
-    function killMe() public returns(bool success) {
-        require(owner == msg.sender);
-        selfdestruct(owner);
+    function pauseContract() public onlyOwner onlyIfRunning returns(bool success) {
+        isRunning = false; 
+        LogPausedContract(msg.sender, now);
+        return true;
+    }
+
+    function resumeContract() public onlyOwner returns(bool success) {
+        isRunning = true; 
+        LogResumedContract(msg.sender, now);
         return true;
     }
 }
