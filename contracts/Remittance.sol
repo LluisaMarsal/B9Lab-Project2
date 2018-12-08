@@ -52,10 +52,11 @@ contract Remittance {
         return true;
     }
         
-    function collectRemittance(bytes32 password1, bytes32 password2, uint amount) public onlyIfRunning returns(bool success) {
+    function collectRemittance(bytes32 password1, bytes32 password2, address sentFrom, uint amount) public onlyIfRunning returns(bool success) {
         bytes32 hashedPassword = hashHelper(password1, password2);
         require(remittanceStructs[hashedPassword].moneyChanger == msg.sender);
         require(remittanceStructs[hashedPassword].amount == amount);
+        remittanceStructs[hashedPassword].sentFrom = sentFrom;
         LogCollect(msg.sender, remittanceStructs[hashedPassword].amount, now);
         msg.sender.transfer(amount);
         return true;
