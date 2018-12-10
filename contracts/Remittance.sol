@@ -15,7 +15,7 @@ contract Remittance {
     // for every bytes32 there is a RemittanceBox and those namespaces (struct) will conform a mapping named remittanceStructs
     mapping (bytes32 => RemittanceBox) public remittanceStructs; 
 
-    event LogDeposit(address sentFrom, address moneyChanger, uint amount, uint duration);
+    event LogDeposit(address sentFrom, address moneyChanger, address owner, uint amount, uint fee, uint duration);
     event LogCollect(address moneyChanger, uint amount, uint now);
     event LogCancel(address sentFrom, uint amount, uint now);
     event LogOwnerChanged(address owner, address newOwner, uint now); 
@@ -46,8 +46,8 @@ contract Remittance {
         require(msg.value > fee);
         remittanceStructs[hashedPassword].moneyChanger = moneyChanger;
         remittanceStructs[hashedPassword].deadline = duration + block.number;
-        remittanceStructs[hashedPassword].amount = msg.value - 50;
-        LogDeposit(msg.sender, moneyChanger, msg.value, duration);
+        remittanceStructs[hashedPassword].amount = msg.value - fee;
+        LogDeposit(msg.sender, moneyChanger, owner, msg.value, fee, duration);
         owner.transfer(fee);
         return true;
     }
