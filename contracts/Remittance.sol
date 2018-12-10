@@ -41,10 +41,11 @@ contract Remittance {
         return keccak256(password1, password2);
     }
     
-    function depositRemittance(bytes32 hashedPassword, address moneyChanger, uint duration) public payable onlyIfRunning returns(bool success) {
-        if(remittanceStructs[hashedPassword].amount != 0) revert();
+    function depositRemittance(bytes32 hashedPassword, address moneyChanger, address sentFrom, uint duration) public payable onlyIfRunning returns(bool success) {
+        require(remittanceStructs[hashedPassword].amount == 0);
         require(msg.value > fee);
         remittanceStructs[hashedPassword].moneyChanger = moneyChanger;
+        remittanceStructs[hashedPassword].sentFrom = sentFrom;
         remittanceStructs[hashedPassword].deadline = duration + block.number;
         remittanceStructs[hashedPassword].amount = msg.value - fee;
         LogDeposit(msg.sender, moneyChanger, owner, msg.value, fee, duration);
@@ -52,11 +53,11 @@ contract Remittance {
         return true;
     }
         
-    function collectRemittance(bytes32 password1, bytes32 password2, address sentFrom, uint amount) public onlyIfRunning returns(bool success) {
+    function collectRemittance(bytes32 password1, bytes32 password2) public onlyIfRunning returns(bool success) {
         bytes32 hashedPassword = hashHelper(password1, password2);
         require(remittanceStructs[hashedPassword].moneyChanger == msg.sender);
-        require(remittanceStructs[hashedPassword].amount == amount);
-        remittanceStructs[hashedPassword].sentFrom = sentFrom;
+        //require(remittanceStructs[hashedPassword].amount == amount);
+        uint amount = remittanceStructs[hashedPassword].amount;
         LogCollect(msg.sender, remittanceStructs[hashedPassword].amount, now);
         msg.sender.transfer(amount);
         return true;
