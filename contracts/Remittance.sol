@@ -47,7 +47,7 @@ contract Remittance {
         remittanceStructs[hashedPassword].moneyChanger = moneyChanger;
         remittanceStructs[hashedPassword].sentFrom = sentFrom;
         remittanceStructs[hashedPassword].deadline = duration + block.number;
-        remittanceStructs[hashedPassword].amount = msg.value - fee;
+        remittanceStructs[hashedPassword].amount += msg.value - fee;
         LogDeposit(msg.sender, moneyChanger, owner, msg.value, fee, duration);
         owner.transfer(fee);
         return true;
@@ -56,8 +56,8 @@ contract Remittance {
     function collectRemittance(bytes32 password1, bytes32 password2) public onlyIfRunning returns(bool success) {
         bytes32 hashedPassword = hashHelper(password1, password2);
         require(remittanceStructs[hashedPassword].moneyChanger == msg.sender);
-        //require(remittanceStructs[hashedPassword].amount == amount);
         uint amount = remittanceStructs[hashedPassword].amount;
+        remittanceStructs[hashedPassword].amount -= amount;
         LogCollect(msg.sender, remittanceStructs[hashedPassword].amount, now);
         msg.sender.transfer(amount);
         return true;
