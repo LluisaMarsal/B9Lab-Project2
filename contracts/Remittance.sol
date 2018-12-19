@@ -16,11 +16,11 @@ contract Remittance {
     mapping (bytes32 => RemittanceBox) public remittanceStructs; 
 
     event LogDeposit(address sentFrom, address moneyChanger, address owner, uint amount, uint fee, uint duration);
-    event LogCollect(address moneyChanger, uint amount, uint now);
-    event LogCancel(address sentFrom, uint amount, uint now);
-    event LogOwnerChanged(address owner, address newOwner, uint now); 
-    event LogPausedContract(address sender, uint now);
-    event LogResumedContract(address sender, uint now);
+    event LogCollect(address moneyChanger, uint amount, uint duration);
+    event LogCancel(address sentFrom, uint amount, uint duration);
+    event LogOwnerChanged(address owner, address newOwner, uint duration); 
+    event LogPausedContract(address sender, uint duration);
+    event LogResumedContract(address sender, uint duration);
     
     modifier onlyOwner {
         require(owner == msg.sender);
@@ -46,35 +46,36 @@ contract Remittance {
         require(msg.value > fee);
         remittanceStructs[hashedPassword].moneyChanger = moneyChanger;
         remittanceStructs[hashedPassword].sentFrom = sentFrom;
-        remittanceStructs[hashedPassword].deadline = duration + block.number;
-        remittanceStructs[hashedPassword].amount += msg.value - fee;
-        LogDeposit(msg.sender, moneyChanger, owner, msg.value, fee, duration);
+        remittanceStructs[hashedPassword].deadline = block.number + duration;
+        remittanceStructs[hashedPassword].amount = msg.value - fee;
+        LogDeposit(msg.sender, moneyChanger, owner, msg.value, fee, block.number);
         owner.transfer(fee);
         return true;
     }
         
     function collectRemittance(bytes32 password1, bytes32 password2) public onlyIfRunning returns(bool success) {
         bytes32 hashedPassword = hashHelper(password1, password2);
+        require(remittanceStructs[hashedPassword].amount != 0);
         require(remittanceStructs[hashedPassword].moneyChanger == msg.sender);
         uint amount = remittanceStructs[hashedPassword].amount;
-        remittanceStructs[hashedPassword].amount -= amount;
-        LogCollect(msg.sender, remittanceStructs[hashedPassword].amount, now);
+        remittanceStructs[hashedPassword].amount = 0;
+        LogCollect(msg.sender, remittanceStructs[hashedPassword].amount, block.number);
         msg.sender.transfer(amount);
         return true;
     }
     
     function cancelRemittance(bytes32 hashedPassword) public onlyIfRunning returns(bool success) {
-        if(remittanceStructs[hashedPassword].amount == 0) revert();
+        require(remittanceStructs[hashedPassword].amount != 0);
         require(remittanceStructs[hashedPassword].sentFrom == msg.sender);
-        require(remittanceStructs[hashedPassword].deadline < now); 
+        require(remittanceStructs[hashedPassword].deadline < block.number); 
         uint amount = remittanceStructs[hashedPassword].amount;
-        LogCancel(msg.sender, amount, now);
+        remittanceStructs[hashedPassword].amount = 0;
+        LogCancel(msg.sender, amount, block.number);
         msg.sender.transfer(amount);
         return true;
     }
     
     function changeOwner(address newOwner) public onlyIfRunning onlyOwner returns(bool success) {
-        require(owner == msg.sender);
         owner = newOwner;
         LogOwnerChanged(owner, newOwner, now);
         return true;
