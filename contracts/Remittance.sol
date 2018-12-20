@@ -15,12 +15,12 @@ contract Remittance {
     // for every bytes32 there is a RemittanceBox and those namespaces (struct) will conform a mapping named remittanceStructs
     mapping (bytes32 => RemittanceBox) public remittanceStructs; 
 
-    event LogDeposit(address sentFrom, address moneyChanger, address owner, uint amount, uint fee, uint duration);
-    event LogCollect(address moneyChanger, uint amount, uint duration);
-    event LogCancel(address sentFrom, uint amount, uint duration);
-    event LogOwnerChanged(address owner, address newOwner, uint duration); 
-    event LogPausedContract(address sender, uint duration);
-    event LogResumedContract(address sender, uint duration);
+    event LogDeposit(address sentFrom, address moneyChanger, address owner, uint amount, uint fee, uint numberOfBlocks);
+    event LogCollect(address moneyChanger, uint amount, uint blockNumber);
+    event LogCancel(address sentFrom, uint amount, uint blockNumber);
+    event LogOwnerChanged(address owner, address newOwner, uint blockNumber); 
+    event LogPausedContract(address sender, uint blockNumber);
+    event LogResumedContract(address sender, uint blockNumber);
     
     modifier onlyOwner {
         require(owner == msg.sender);
@@ -41,14 +41,14 @@ contract Remittance {
         return keccak256(password1, password2);
     }
     
-    function depositRemittance(bytes32 hashedPassword, address moneyChanger, address sentFrom, uint duration) public payable onlyIfRunning returns(bool success) {
+    function depositRemittance(bytes32 hashedPassword, address moneyChanger, address sentFrom, uint numberOfBlocks) public payable onlyIfRunning returns(bool success) {
         require(remittanceStructs[hashedPassword].amount == 0);
         require(msg.value > fee);
         remittanceStructs[hashedPassword].moneyChanger = moneyChanger;
         remittanceStructs[hashedPassword].sentFrom = sentFrom;
-        remittanceStructs[hashedPassword].deadline = block.number + duration;
+        remittanceStructs[hashedPassword].deadline = block.number + numberOfBlocks;
         remittanceStructs[hashedPassword].amount = msg.value - fee;
-        LogDeposit(msg.sender, moneyChanger, owner, msg.value, fee, block.number);
+        LogDeposit(msg.sender, moneyChanger, owner, msg.value, fee, numberOfBlocks);
         owner.transfer(fee);
         return true;
     }
@@ -57,6 +57,7 @@ contract Remittance {
         bytes32 hashedPassword = hashHelper(password1, password2);
         require(remittanceStructs[hashedPassword].amount != 0);
         require(remittanceStructs[hashedPassword].moneyChanger == msg.sender);
+        require(remittanceStructs[hashedPassword].deadline < block.number); 
         uint amount = remittanceStructs[hashedPassword].amount;
         remittanceStructs[hashedPassword].amount = 0;
         LogCollect(msg.sender, remittanceStructs[hashedPassword].amount, block.number);
