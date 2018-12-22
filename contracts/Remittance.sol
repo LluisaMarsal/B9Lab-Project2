@@ -1,9 +1,11 @@
 pragma solidity ^0.4.19;
+
+import "./Owned.sol";
  
-contract Remittance {
+contract Remittance is Owned {
     
-    address public owner;
-    uint fee = 50;
+    address public owner; 
+    uint constant fee = 50;
     bool isRunning;
     
     struct RemittanceBox {
@@ -15,17 +17,9 @@ contract Remittance {
     // for every bytes32 there is a RemittanceBox and those namespaces (struct) will conform a mapping named remittanceStructs
     mapping (bytes32 => RemittanceBox) public remittanceStructs; 
 
-    event LogDeposit(address sentFrom, address moneyChanger, address owner, uint amount, uint fee, uint numberOfBlocks);
-    event LogCollect(address moneyChanger, uint amount, uint blockNumber);
-    event LogCancel(address sentFrom, uint amount, uint blockNumber);
-    event LogOwnerChanged(address owner, address newOwner, uint blockNumber); 
-    event LogPausedContract(address sender, uint blockNumber);
-    event LogResumedContract(address sender, uint blockNumber);
-    
-    modifier onlyOwner {
-        require(owner == msg.sender);
-        _;
-    }
+    event LogDeposit(address sentFrom, address indexed moneyChanger, address owner, uint indexed amount, uint fee, uint indexed numberOfBlocks);
+    event LogCollect(address indexed moneyChanger, uint indexed amount, uint indexed blockNumber);
+    event LogCancel(address sentFrom, uint indexed amount, uint indexed blockNumber);
     
     modifier onlyIfRunning {
         require(isRunning);
@@ -33,7 +27,6 @@ contract Remittance {
     }
     
     function Remittance() public {
-        owner = msg.sender;
         isRunning = true;
     }
 
@@ -44,6 +37,8 @@ contract Remittance {
     function depositRemittance(bytes32 hashedPassword, address moneyChanger, address sentFrom, uint numberOfBlocks) public payable onlyIfRunning returns(bool success) {
         require(remittanceStructs[hashedPassword].amount == 0);
         require(msg.value > fee);
+        require(remittanceStructs[hashedPassword].moneyChanger != 0x0);
+        require(remittanceStructs[hashedPassword].deadline >= 100 && remittanceStructs[hashedPassword].deadline <= 10000);
         remittanceStructs[hashedPassword].moneyChanger = moneyChanger;
         remittanceStructs[hashedPassword].sentFrom = sentFrom;
         remittanceStructs[hashedPassword].deadline = block.number + numberOfBlocks;
@@ -55,10 +50,10 @@ contract Remittance {
         
     function collectRemittance(bytes32 password1, bytes32 password2) public onlyIfRunning returns(bool success) {
         bytes32 hashedPassword = hashHelper(password1, password2);
-        require(remittanceStructs[hashedPassword].amount != 0);
+        uint amount = remittanceStructs[hashedPassword].amount;
+        require(amount != 0);
         require(remittanceStructs[hashedPassword].moneyChanger == msg.sender);
         require(remittanceStructs[hashedPassword].deadline < block.number); 
-        uint amount = remittanceStructs[hashedPassword].amount;
         remittanceStructs[hashedPassword].amount = 0;
         LogCollect(msg.sender, remittanceStructs[hashedPassword].amount, block.number);
         msg.sender.transfer(amount);
@@ -73,24 +68,6 @@ contract Remittance {
         remittanceStructs[hashedPassword].amount = 0;
         LogCancel(msg.sender, amount, block.number);
         msg.sender.transfer(amount);
-        return true;
-    }
-    
-    function changeOwner(address newOwner) public onlyIfRunning onlyOwner returns(bool success) {
-        owner = newOwner;
-        LogOwnerChanged(owner, newOwner, now);
-        return true;
-    }
-
-    function pauseContract() public onlyOwner onlyIfRunning returns(bool success) {
-        isRunning = false; 
-        LogPausedContract(msg.sender, now);
-        return true;
-    }
-
-    function resumeContract() public onlyOwner returns(bool success) {
-        isRunning = true; 
-        LogResumedContract(msg.sender, now);
         return true;
     }
 }
