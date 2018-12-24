@@ -2,7 +2,8 @@ pragma solidity ^0.4.19;
 
 contract Owned { 
     
-    address public owner; 
+    address owner; 
+    bool isRunning;
     
     event LogOwnerChanged(address owner, address newOwner, uint blockNumber); 
     event LogPausedContract(address sender, uint blockNumber);
@@ -24,12 +25,14 @@ contract Owned {
     }
     
     function pauseContract() public onlyOwner returns(bool success) {
-	    LogPausedContract(msg.sender, now);
-	    return true;
+        isRunning = false; 
+        LogPausedContract(msg.sender, now);
+        return true;
     }
 
     function resumeContract() public onlyOwner returns(bool success) {
-	    LogResumedContract(msg.sender, now);
-	    return true;
+        isRunning = true; 
+        LogResumedContract(msg.sender, now);
+        return true;
     }
 }
