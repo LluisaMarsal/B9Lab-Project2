@@ -1,32 +1,28 @@
 pragma solidity ^0.4.19;
 
 import "./Owned.sol";
+import "./Pausable.sol";
  
-contract Remittance is Owned {
+contract Remittance is Owned, Pausable {
     
     uint constant fee = 50;
-    bool isRunning;
+    uint constant durationInBlocks = 2592000;
     
     struct RemittanceBox {
        address sentFrom;
        address moneyChanger; 
+       address owner;
        uint amount;
        uint deadline; 
     }
     // for every bytes32 there is a RemittanceBox and those namespaces (struct) will conform a mapping named remittanceStructs
     mapping (bytes32 => RemittanceBox) public remittanceStructs; 
 
-    event LogDeposit(address sentFrom, address indexed moneyChanger, uint amount, uint fee, uint indexed numberOfBlocks);
-    event LogCollect(address indexed moneyChanger, uint indexed amount, uint indexed blockNumber);
-    event LogCancel(address sentFrom, uint indexed amount, uint indexed blockNumber);
-    
-    modifier onlyIfRunning {
-        require(isRunning);
-        _;
-    }
+    event LogDeposit(address indexed sentFrom, address indexed moneyChanger, uint amount, uint fee, uint numberOfBlocks);
+    event LogCollect(address indexed moneyChanger, uint amount, uint blockNumber);
+    event LogCancel(address indexed sentFrom, uint amount, uint blockNumber);
     
     function Remittance() public {
-        isRunning = true;
     }
 
     function hashHelper(bytes32 password1, bytes32 password2) public pure returns(bytes32 hashedPassword) {
@@ -34,14 +30,15 @@ contract Remittance is Owned {
     }
     
     function depositRemittance(bytes32 hashedPassword, address moneyChanger, uint numberOfBlocks) public payable onlyIfRunning returns(bool success) {
+        remittanceStructs[hashedPassword].deadline = block.number + numberOfBlocks;
         require(remittanceStructs[hashedPassword].amount == 0);
         require(remittanceStructs[hashedPassword].moneyChanger != 0x0);
-        require(remittanceStructs[hashedPassword].deadline >= 0);
-        require(remittanceStructs[hashedPassword].deadline <= 2592000);
+        require(remittanceStructs[hashedPassword].deadline > 0);
+        require(remittanceStructs[hashedPassword].deadline < durationInBlocks);
         require(msg.value > fee);
+        address owner = remittanceStructs[hashedPassword].owner;
         remittanceStructs[hashedPassword].moneyChanger = moneyChanger;
         remittanceStructs[hashedPassword].sentFrom = msg.sender;
-        remittanceStructs[hashedPassword].deadline = block.number + numberOfBlocks;
         remittanceStructs[hashedPassword].amount = msg.value - fee;
         LogDeposit(msg.sender, moneyChanger, msg.value, fee, numberOfBlocks);
         owner.transfer(fee);
@@ -53,7 +50,7 @@ contract Remittance is Owned {
         uint amount = remittanceStructs[hashedPassword].amount;
         require(amount != 0);
         require(remittanceStructs[hashedPassword].moneyChanger == msg.sender);
-        require(remittanceStructs[hashedPassword].deadline < block.number); 
+        require(remittanceStructs[hashedPassword].deadline > block.number); 
         remittanceStructs[hashedPassword].amount = 0;
         LogCollect(msg.sender, remittanceStructs[hashedPassword].amount, block.number);
         msg.sender.transfer(amount);
