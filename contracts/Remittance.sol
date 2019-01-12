@@ -4,6 +4,7 @@ import "./Pausable.sol";
  
 contract Remittance is Pausable {
     
+    address owner;
     uint constant fee = 50;
     uint constant maxDurationInBlocks = 4 weeks / 15;
     uint constant minDurationInBlocks = 1 days / 15;
@@ -17,9 +18,9 @@ contract Remittance is Pausable {
     // for every bytes32 there is a RemittanceBox and those namespaces (struct) will conform a mapping named remittanceStructs
     mapping (bytes32 => RemittanceBox) public remittanceStructs; 
 
-    event LogDeposit(address indexed sentFrom, address indexed moneyChanger, uint amount, uint fee, uint numberOfBlocks, uint blockNumber);
-    event LogCollect(address indexed moneyChanger, uint amount, uint blockNumber);
-    event LogCancel(address indexed sentFrom, uint amount, uint blockNumber);
+    event LogDeposit(address indexed sentFrom, address indexed moneyChanger, uint amount, uint fee, uint numberOfBlocks);
+    event LogCollect(address indexed moneyChanger, uint amount);
+    event LogCancel(address indexed sentFrom, uint amount);
     
     function Remittance() public {
     }
@@ -28,32 +29,34 @@ contract Remittance is Pausable {
         return keccak256(password1, password2);
     }
     
-    function depositRemittance(bytes32 hashedPassword, address moneyChanger, address owner, uint numberOfBlocks) public payable onlyIfRunning returns(bool success) {
+    function depositRemittance(bytes32 hashedPassword, address moneyChanger, address _owner, uint numberOfBlocks) public payable onlyIfRunning returns(bool success) {
         require(hashedPassword != 0);
-        require(remittanceStructs[hashedPassword].amount == 0);
-        require(remittanceStructs[hashedPassword].moneyChanger != 0x0);
-        require(owner != 0x0);
-        require(remittanceStructs[hashedPassword].deadline > 0);
         require(msg.value > fee);
+        require(moneyChanger != 0x0);
+        require(owner == _owner);
         require(numberOfBlocks > 1 days / 15);
         require(numberOfBlocks < 4 weeks / 15);
         remittanceStructs[hashedPassword].moneyChanger = moneyChanger;
         remittanceStructs[hashedPassword].sentFrom = msg.sender;
         remittanceStructs[hashedPassword].amount = msg.value - fee;
         remittanceStructs[hashedPassword].deadline = block.number + numberOfBlocks;
-        LogDeposit(msg.sender, moneyChanger, msg.value, fee, numberOfBlocks, block.number);
+        LogDeposit(msg.sender, moneyChanger, msg.value, fee, numberOfBlocks);
         owner.transfer(fee);
         return true;
     }
         
     function collectRemittance(bytes32 password1, bytes32 password2) public onlyIfRunning returns(bool success) {
         bytes32 hashedPassword = hashHelper(password1, password2);
+    //this goes before requirements as an exception, to avoid having to write twice in the box and therefore
+    //save some serious gas. You can do that when variables are transient (stored in memory, not in storage)
         uint amount = remittanceStructs[hashedPassword].amount;
         require(amount != 0);
         require(remittanceStructs[hashedPassword].moneyChanger == msg.sender);
         require(remittanceStructs[hashedPassword].deadline >= block.number);
         remittanceStructs[hashedPassword].amount = 0;
-        LogCollect(msg.sender, remittanceStructs[hashedPassword].amount, block.number);
+        remittanceStructs[hashedPassword].deadline = 0;
+        remittanceStructs[hashedPassword].moneyChanger = 0x0;
+        LogCollect(msg.sender, remittanceStructs[hashedPassword].amount);
         msg.sender.transfer(amount);
         return true;
     }
@@ -64,7 +67,9 @@ contract Remittance is Pausable {
         require(remittanceStructs[hashedPassword].deadline < block.number); 
         uint amount = remittanceStructs[hashedPassword].amount;
         remittanceStructs[hashedPassword].amount = 0;
-        LogCancel(msg.sender, amount, block.number);
+        remittanceStructs[hashedPassword].deadline = 0;
+        remittanceStructs[hashedPassword].sentFrom = 0x0; 
+        LogCancel(msg.sender, amount);
         msg.sender.transfer(amount);
         return true;
     }
