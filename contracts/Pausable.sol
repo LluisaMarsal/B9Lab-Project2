@@ -29,4 +29,8 @@ contract Pausable is Owned {
         LogResumedContract(msg.sender);
         return true;
     }
+    
+    function getIsRunning() public view returns(bool) {
+        return isRunning;
+    }
 }
