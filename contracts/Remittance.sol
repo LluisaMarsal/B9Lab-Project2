@@ -4,7 +4,7 @@ import "./Pausable.sol";
  
 contract Remittance is Pausable {
     
-    address owner;
+    address private _owner;
     uint constant fee = 50;
     uint constant maxDurationInBlocks = 4 weeks / 15;
     uint constant minDurationInBlocks = 1 days / 15;
@@ -29,8 +29,9 @@ contract Remittance is Pausable {
         return keccak256(password1, password2);
     }
     
-    function depositRemittance(bytes32 hashedPassword, address moneyChanger, address _owner, uint numberOfBlocks) public payable onlyIfRunning returns(bool success) {
+    function depositRemittance(bytes32 hashedPassword, address moneyChanger, address owner, uint numberOfBlocks) public payable onlyIfRunning returns(bool success) {
         require(hashedPassword != 0);
+        require(remittanceStructs[hashedPassword].amount == 0);
         require(msg.value > fee);
         require(moneyChanger != 0x0);
         require(owner == _owner);
@@ -41,7 +42,7 @@ contract Remittance is Pausable {
         remittanceStructs[hashedPassword].amount = msg.value - fee;
         remittanceStructs[hashedPassword].deadline = block.number + numberOfBlocks;
         LogDeposit(msg.sender, moneyChanger, msg.value, fee, numberOfBlocks);
-        owner.transfer(fee);
+        _owner.transfer(fee);
         return true;
     }
         
