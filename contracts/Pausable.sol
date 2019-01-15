@@ -4,33 +4,34 @@ import "./Owned.sol";
 
 contract Pausable is Owned { 
     
-    bool private isRunning;
+//By convention the private boolean field underlying a getter does not include "is". 
+    bool private running;
     
     event LogPausedContract(address indexed sender);
     event LogResumedContract(address indexed sender);
     
     modifier onlyIfRunning {
-        require(isRunning);
+        require(running);
         _;
     }
     
     function Pausable() public {
-        isRunning = true;
+        running = true;
     }
     
     function pauseContract() public onlyOwner returns(bool success) {
-        isRunning = false; 
+        running = false; 
         LogPausedContract(msg.sender);
         return true;
     }
 
     function resumeContract() public onlyOwner returns(bool success) {
-        isRunning = true; 
+        running = true; 
         LogResumedContract(msg.sender);
         return true;
     }
-    
-    function getIsRunning() public view returns(bool) {
-        return isRunning;
+//By convention, a getter for a boolean starts with "is" 
+    function isRunning() public view returns(bool) {
+        return running;
     }
 }
