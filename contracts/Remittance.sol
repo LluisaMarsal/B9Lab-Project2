@@ -4,7 +4,6 @@ import "./Pausable.sol";
  
 contract Remittance is Pausable {
     
-    address private _owner;
     uint constant fee = 50;
     uint constant maxDurationInBlocks = 4 weeks / 15;
     uint constant minDurationInBlocks = 1 days / 15;
@@ -34,15 +33,14 @@ contract Remittance is Pausable {
         require(remittanceStructs[hashedPassword].amount == 0);
         require(msg.value > fee);
         require(moneyChanger != 0x0);
-        require(owner == _owner);
-        require(numberOfBlocks > 1 days / 15);
-        require(numberOfBlocks < 4 weeks / 15);
+        require(numberOfBlocks > minDurationInBlocks);
+        require(numberOfBlocks < maxDurationInBlocks);
         remittanceStructs[hashedPassword].moneyChanger = moneyChanger;
         remittanceStructs[hashedPassword].sentFrom = msg.sender;
         remittanceStructs[hashedPassword].amount = msg.value - fee;
         remittanceStructs[hashedPassword].deadline = block.number + numberOfBlocks;
         LogDeposit(msg.sender, moneyChanger, msg.value, fee, numberOfBlocks);
-        _owner.transfer(fee);
+        owner.transfer(fee);
         return true;
     }
         
@@ -57,6 +55,7 @@ contract Remittance is Pausable {
         remittanceStructs[hashedPassword].amount = 0;
         remittanceStructs[hashedPassword].deadline = 0;
         remittanceStructs[hashedPassword].moneyChanger = 0x0;
+        remittanceStructs[hashedPassword].sentFrom = 0x0; 
         LogCollect(msg.sender, remittanceStructs[hashedPassword].amount);
         msg.sender.transfer(amount);
         return true;
@@ -70,6 +69,7 @@ contract Remittance is Pausable {
         remittanceStructs[hashedPassword].amount = 0;
         remittanceStructs[hashedPassword].deadline = 0;
         remittanceStructs[hashedPassword].sentFrom = 0x0; 
+        remittanceStructs[hashedPassword].moneyChanger = 0x0; 
         LogCancel(msg.sender, amount);
         msg.sender.transfer(amount);
         return true;
