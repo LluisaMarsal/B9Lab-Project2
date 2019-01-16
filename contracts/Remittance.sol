@@ -28,7 +28,7 @@ contract Remittance is Pausable {
         return keccak256(password1, password2);
     }
     
-    function depositRemittance(bytes32 hashedPassword, address moneyChanger, address owner, uint numberOfBlocks) public payable onlyIfRunning returns(bool success) {
+    function depositRemittance(bytes32 hashedPassword, address moneyChanger, uint numberOfBlocks) public payable onlyIfRunning returns(bool success) {
         require(hashedPassword != 0);
         require(remittanceStructs[hashedPassword].amount == 0);
         require(msg.value > fee);
@@ -40,6 +40,7 @@ contract Remittance is Pausable {
         remittanceStructs[hashedPassword].amount = msg.value - fee;
         remittanceStructs[hashedPassword].deadline = block.number + numberOfBlocks;
         LogDeposit(msg.sender, moneyChanger, msg.value, fee, numberOfBlocks);
+        address owner = owner;
         owner.transfer(fee);
         return true;
     }
