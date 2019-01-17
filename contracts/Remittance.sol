@@ -40,8 +40,7 @@ contract Remittance is Pausable {
         remittanceStructs[hashedPassword].amount = msg.value - fee;
         remittanceStructs[hashedPassword].deadline = block.number + numberOfBlocks;
         LogDeposit(msg.sender, moneyChanger, msg.value, fee, numberOfBlocks);
-        address owner = owner;
-        owner.transfer(fee);
+        super.getOwner().transfer(fee);
         return true;
     }
         
